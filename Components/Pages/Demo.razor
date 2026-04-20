@@ -1,0 +1,78 @@
+@page "/user-form-demo"
+@rendermode InteractiveServer
+
+<h3>User Form Demo</h3>
+
+<UserForm Model="currentUser"
+          OnSubmit="HandleSubmit"
+          SubmitButtonText="@ButtonText" />
+
+<hr />
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Id</th>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Age</th>
+        <th>Email</th>
+    </tr>
+    </thead>
+    <tbody>
+    @foreach (var user in users)
+    {
+        <tr @onclick="() => SelectUser(user)" style="cursor:pointer">
+            <td>@user.Id</td>
+            <td>@user.Name</td>
+            <td>@user.Address</td>
+            <td>@user.Age</td>
+            <td>@user.Email</td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+@code {
+    private List<UserModel> users = new();
+    private UserModel currentUser = new();
+
+    private string ButtonText => currentUser.Id == 0 ? "Create User" : "Update User";
+
+    private async Task HandleSubmit(UserModel model)
+    {
+        if (model.Id == 0)
+        {
+            // CREATE
+            model.Id = users.Count + 1;
+            users.Add(model);
+        }
+        else
+        {
+            // UPDATE
+            var existing = users.First(u => u.Id == model.Id);
+
+            existing.Name = model.Name;
+            existing.Address = model.Address;
+            existing.Age = model.Age;
+            existing.Email = model.Email;
+        }
+
+        // Reset form
+        currentUser = new UserModel();
+
+        await Task.CompletedTask;
+    }
+
+    private void SelectUser(UserModel user)
+    {
+        currentUser = new UserModel
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Address = user.Address,
+            Age = user.Age,
+            Email = user.Email
+        };
+    }
+}

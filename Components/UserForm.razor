@@ -1,0 +1,127 @@
+<style>
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        margin-bottom: 0.25rem;
+    }
+</style>
+
+<EditForm EditContext="_editContext" OnValidSubmit="HandleSubmit" FormName="UserForm">
+    <DataAnnotationsValidator />
+
+    <div class="form-group">
+        <label for="name">Name</label>
+        <InputText id="name" class="form-control" @bind-Value="Model.Name" />
+        <ValidationMessage For="@(() => Model.Name)" />
+    </div>
+
+    <div class="form-group">
+        <label for="address">Address</label>
+        <InputText id="address" class="form-control" @bind-Value="Model.Address" />
+        <ValidationMessage For="@(() => Model.Address)" />
+    </div>
+
+    <div class="form-group">
+        <label for="age">Age</label>
+        <InputNumber id="age" class="form-control" @bind-Value="Model.Age" />
+        <ValidationMessage For="@(() => Model.Age)" />
+    </div>
+
+    <div class="form-group">
+        <label for="email">Email</label>
+        @* This field uses Value/ValueChanged instead of @bind *@
+        <InputText id="email"
+                   class="form-control"
+                   Value="@Model.Email"
+                   ValueChanged="OnEmailChanged"
+                   ValueExpression="() => Model.Email" />
+        <ValidationMessage For="@(() => Model.Email)" />
+    </div>
+    
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary" disabled="@IsSubmitting">
+            @SubmitButtonText
+        </button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public UserModel Model { get; set; }
+
+    [Parameter]
+    public EventCallback<UserModel> OnSubmit { get; set; }
+
+    [Parameter]
+    public string SubmitButtonText { get; set; } = "Submit";
+
+    [Inject]
+    public IEmailService EmailService { get; set; }
+
+    private EditContext _editContext;
+    private FieldIdentifier _emailField;
+    private bool IsSubmitting;
+
+    protected override void OnParametersSet()
+    {
+        _editContext = new EditContext(Model);
+    }
+
+    protected override void OnInitialized()
+    {
+        _emailField = new FieldIdentifier(Model, nameof(Model.Email));
+    }
+    
+    private void SetEmailError(string? error)
+    {
+        var messageStore = new ValidationMessageStore(_editContext);
+
+        messageStore.Clear(_emailField);
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            messageStore.Add(_emailField, error);
+        }
+
+        _editContext.NotifyValidationStateChanged();
+    }
+    
+    private async Task OnEmailChanged(string value)
+    {
+        Model.Email = value;
+        
+        SetEmailError(null);
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            var exists = await EmailService.ExistsAsync(value);
+            if (exists)
+            {
+                SetEmailError("Email already exists.");
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        // Block submission if is currently submitting
+        if (IsSubmitting)
+            return;
+
+        IsSubmitting = true;
+
+        try
+        {
+            if (OnSubmit.HasDelegate)
+            {
+                await OnSubmit.InvokeAsync(Model);
+            }
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+}
